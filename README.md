@@ -47,8 +47,10 @@ Open <http://localhost:3000>.
 
 ## API
 
-The chat UI currently uses local mock fixtures and does not call `/api/chat`;
-the server integration will be wired in a later prompt. See
+`POST /api/chat` is implemented and forwards validated requests to the
+server-side n8n integration. The chat UI currently uses local mock fixtures and
+does not call `/api/chat` yet; the two will be wired together in a later
+prompt. See
 [docs/n8n-integration.md](./docs/n8n-integration.md) for the request,
 response, error, and logging contracts.
 
