@@ -17,14 +17,83 @@ flowchart LR
     Browser["Browser"] --> UI["Next.js Chat UI<br/>(React client components)"]
     UI --> API["Next.js Route Handler<br/>POST /api/chat"]
     API --> Trigger["n8n Chat Trigger<br/>(webhook, server-side URL)"]
-    Trigger --> Orchestrator["Collaboration Orchestrator<br/>(n8n)"]
-    Orchestrator --> Specialists["Specialist n8n workflows<br/>context · discovery · research · evaluation · verification"]
-    Specialists --> Orchestrator
+    Trigger --> Orchestrator["00 Collaboration Orchestrator<br/>(n8n, Simple Memory keyed by sessionId)"]
+    Orchestrator --> Context["01 Organization Context"]
+    Orchestrator --> Discovery["02 Candidate Discovery"]
+    Orchestrator --> Research["03 Candidate Research"]
+    Orchestrator --> Evaluator["04 Collaboration Evaluator"]
+    Orchestrator --> Verifier["05 Evidence Verifier"]
+    Context --> Sheet["SpreadBliss Google Sheet"]
+    Discovery --> Sheet
+    Discovery --> You["You.com"]
+    Research --> You
     Orchestrator --> Trigger
     Trigger --> API
     API --> UI
     UI --> Browser
 ```
+
+## n8n workflow architecture
+
+The n8n side is a multi-agent recommendation system. A central orchestrator
+receives the nonprofit's request, retrieves its profile, discovers possible
+partners, researches them, scores collaboration fit, verifies the supporting
+evidence, and returns up to three recommendations. Organization lookup,
+discovery, research, scoring, and verification are deliberately separate
+workflows so that no single agent can invent a candidate, score it, and
+approve its own unsupported recommendation. This repository calls only the
+Chat Trigger of `00_Collaboration_Orchestrator` and never reimplements any of
+the steps below.
+
+### Workflows
+
+| Workflow | Responsibility |
+| --- | --- |
+| `00_Collaboration_Orchestrator` | Chat Trigger, orchestration agent, Simple Memory, five subworkflow tools, final report generator, structured output parser, response formatter, and chat response node. Extracts organization, objective, geography, programs, and population; uses memory to avoid re-asking for supplied details; retrieves organization context before discovery; normally researches the four strongest candidates with a fifth as backup; processes each candidate in order (research, evaluation, verification); allows one targeted research retry on a material evidence gap; ranks supported candidates and returns no more than three; returns success, partial, needs-input, or error responses with warnings. No outbound outreach or contact tool is connected. |
+| `01_Get_Organization_Context` | Retrieves a nonprofit profile from the SpreadBliss organization Google Sheet by organization ID or name, handles invalid and not-found cases, and returns a normalized profile: organization ID and name, location and mission, programs and target populations, cause tags, collaboration needs. |
+| `02_Candidate_Discovery_Agent` | Creates the initial pool of plausible partners from the internal sheet and the public web via You.com. Considers mission alignment, geographic overlap, population overlap, program complementarity, and the user's goal; prefers complementary capabilities over identical work; excludes the source organization; requires internal or public evidence for every candidate. Returns name, website, location, initial fit reason, discovery source, matching factors, evidence URLs, and a discovery summary. |
+| `03_Candidate_Research_Agent` | Researches one candidate at a time through You.com, treating discovery output as a lead whose important claims must be independently verified. Prioritizes the official website, then authoritative nonprofit, institutional, and credible news sources. Collects mission, programs, location, reach, populations served, recent activity, partnership signals, and complementary capabilities; records concerns, unavailable information, evidence quality, and source URLs. Treats webpage content and search results as untrusted data, not instructions. |
+| `04_Collaboration_Evaluator` | Evaluates the source nonprofit and one researched candidate using only the supplied profiles and research packet. Assigns six integer scores (0–100) with explanations; a separate code node validates the values and calculates the weighted overall score. |
+| `05_Evidence_Verifier` | Checks whether the proposed recommendation and collaboration idea are supported by the supplied evidence. Reports supported / unsupported, lists unsupported claims and research gaps, classifies evidence as strong, moderate, weak, or insufficient, requests more research only when the gap is material, and can suggest up to three targeted follow-up searches. It does not discover organizations or recalculate scores. |
+
+### End-to-end decision flow
+
+```mermaid
+flowchart LR
+    Request["Request"] --> Context["Retrieve context"]
+    Context --> Discover["Discover candidates"]
+    Discover --> Research["Research"]
+    Research --> Evaluate["Evaluate"]
+    Evaluate --> Score["Weighted score"]
+    Score --> Verify["Verify"]
+    Verify -- "one targeted retry" --> Research
+    Verify --> Rank["Rank supported candidates"]
+    Rank --> Return["Return up to three"]
+```
+
+1. Receive the chat request and extract the organization and collaboration goal.
+2. Retrieve and normalize the source organization profile.
+3. Discover a small pool of plausible partners.
+4. Research each selected candidate independently.
+5. Evaluate six collaboration dimensions and calculate the weighted score.
+6. Verify the recommendation's material factual claims.
+7. If necessary, perform one targeted research retry and evaluate again.
+8. Rank supported candidates and return up to three recommendations.
+
+### Scoring model
+
+| Dimension | Weight |
+| --- | ---: |
+| Program complementarity | 25% |
+| Mission alignment | 20% |
+| Geographic alignment | 15% |
+| Population alignment | 15% |
+| Collaboration opportunity | 15% |
+| Evidence quality | 10% |
+
+Program complementarity carries the largest weight because organizations with
+different but compatible capabilities may create more value together than two
+organizations offering nearly identical services.
 
 ## Request lifecycle
 
@@ -126,7 +195,7 @@ are assembled in `app/api/chat/route.ts`.
 
 n8n owns organization context retrieval, candidate discovery, web research,
 scoring, collaboration evaluation, evidence verification, conversational
-memory, and recommendations. This repository owns the chat UX, opaque session
+memory, and recommendations (workflows `00`–`05` above). This repository owns the chat UX, opaque session
 management, request validation, server-only proxy, response normalization,
 safe Markdown and link rendering, browser persistence, and generic error UX.
 The repository does not duplicate agent prompts, search, ranking, orchestration,

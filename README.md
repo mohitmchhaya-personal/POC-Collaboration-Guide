@@ -3,16 +3,19 @@
 ## Overview
 
 SpreadBliss Collaboration Intelligence is a standalone chat UI for an existing
-n8n multi-agent Collaboration Intelligence workflow.
+n8n multi-agent Collaboration Intelligence workflow. A central n8n
+orchestrator receives a nonprofit's request, retrieves its profile, discovers
+possible partners, researches them, scores collaboration fit, verifies the
+supporting evidence, and returns up to three recommendations.
 
-**n8n handles:**
+**n8n handles** (one workflow per responsibility):
 
-- nonprofit context
-- candidate discovery
-- You.com research
-- collaboration evaluation
-- evidence verification
-- conversational memory
+- nonprofit context — `01_Get_Organization_Context`
+- candidate discovery — `02_Candidate_Discovery_Agent`
+- You.com research — `03_Candidate_Research_Agent`
+- collaboration evaluation — `04_Collaboration_Evaluator`
+- evidence verification — `05_Evidence_Verifier`
+- conversational memory — Simple Memory on `00_Collaboration_Orchestrator`
 
 **This Next.js project handles:**
 
@@ -26,7 +29,7 @@ This repository never reimplements the n8n workflow.
 
 ## Architecture
 
-![SpreadBliss Collaboration Intelligence architecture: browser to Next.js chat UI and POST /api/chat route, server-only n8n webhook call, n8n Chat Trigger, Collaboration Orchestrator, and specialist workflows](./docs/architecture-diagram.png)
+![SpreadBliss Collaboration Intelligence architecture: browser to Next.js chat UI and POST /api/chat route, server-only n8n webhook call, n8n Chat Trigger, 00 Collaboration Orchestrator with Simple Memory, five specialist workflows (01 Organization Context, 02 Candidate Discovery, 03 Candidate Research, 04 Collaboration Evaluator, 05 Evidence Verifier), and their data sources (SpreadBliss Google Sheet, You.com)](./docs/architecture-diagram.png)
 
 Editable source: [docs/architecture-diagram.svg](./docs/architecture-diagram.svg).
 
@@ -35,9 +38,16 @@ flowchart LR
     Browser["Browser"] --> UI["Next.js Chat UI<br/>(React client components)"]
     UI --> API["Next.js Route Handler<br/>POST /api/chat"]
     API --> Trigger["n8n Chat Trigger<br/>(webhook, server-side URL)"]
-    Trigger --> Orchestrator["Collaboration Orchestrator<br/>(n8n)"]
-    Orchestrator --> Specialists["Specialist n8n workflows<br/>context · discovery · research · evaluation · verification"]
-    Specialists --> Orchestrator
+    Trigger --> Orchestrator["00 Collaboration Orchestrator<br/>(n8n, Simple Memory keyed by sessionId)"]
+    Orchestrator --> Context["01 Organization Context"]
+    Orchestrator --> Discovery["02 Candidate Discovery"]
+    Orchestrator --> Research["03 Candidate Research"]
+    Orchestrator --> Evaluator["04 Collaboration Evaluator"]
+    Orchestrator --> Verifier["05 Evidence Verifier"]
+    Context --> Sheet["SpreadBliss Google Sheet"]
+    Discovery --> Sheet
+    Discovery --> You["You.com"]
+    Research --> You
     Orchestrator --> Trigger
     Trigger --> API
     API --> UI
@@ -50,7 +60,34 @@ server sends `{action:"sendMessage", sessionId, chatInput}` to the n8n Chat
 Trigger, which returns `{ "output": string }`. The response is normalized into
 the browser `ChatResponse` contract and rendered as safe Markdown or validated
 recommendation cards. See [docs/architecture.md](./docs/architecture.md) for
-the detailed lifecycle and module boundaries.
+the detailed lifecycle, the n8n workflow responsibilities, and module
+boundaries.
+
+### Inside the n8n workflow
+
+The n8n side keeps organization lookup, discovery, research, scoring, and
+evidence verification in separate workflows so that no single agent can invent
+a candidate, score it, and approve its own unsupported recommendation.
+
+| Workflow | Responsibility |
+| --- | --- |
+| `00_Collaboration_Orchestrator` | Chat-facing entry point. Extracts organization, objective, geography, programs, and population; uses Simple Memory so it does not re-ask for supplied details; runs research → evaluation → verification per candidate; allows one targeted research retry; ranks supported candidates and returns at most three. |
+| `01_Get_Organization_Context` | Looks up the nonprofit profile (ID or name) in the SpreadBliss organization Google Sheet and returns a normalized profile: location, mission, programs, populations, cause tags, collaboration needs. |
+| `02_Candidate_Discovery_Agent` | Builds the initial partner pool from the internal sheet and You.com, favouring complementary capabilities over identical work; excludes the source organization and requires evidence for every candidate. |
+| `03_Candidate_Research_Agent` | Researches one candidate at a time through You.com, prioritising official and authoritative sources; records concerns, gaps, evidence quality, and source URLs; treats web content as untrusted data. |
+| `04_Collaboration_Evaluator` | Scores six dimensions (0–100 each) from the supplied profiles and research packet only; a code node validates the values and computes the weighted overall score. |
+| `05_Evidence_Verifier` | Checks that the recommendation is supported by the evidence, lists unsupported claims and gaps, grades evidence strong / moderate / weak / insufficient, and requests more research only for material gaps. |
+
+End-to-end decision flow: request → retrieve context → discover candidates →
+research → evaluate → weighted score → verify (one targeted retry back to
+research if a material gap is found) → rank supported candidates → return up
+to three.
+
+Scoring weights: program complementarity 25%, mission alignment 20%,
+geographic alignment 15%, population alignment 15%, collaboration opportunity
+15%, evidence quality 10%. Responses can be success, partial, needs-input, or
+error; the UI renders each as an ordinary assistant message. No outbound
+outreach or contact tool is connected to the orchestrator.
 
 ## Setup
 
