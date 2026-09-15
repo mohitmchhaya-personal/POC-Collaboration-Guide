@@ -38,6 +38,16 @@ export type ChatResponse = {
   recommendations?: Recommendation[];
 };
 
+export type TranscriptMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+};
+
+export type SendChatMessage = (
+  request: ChatRequest,
+) => Promise<ChatResponse>;
+
 export type ChatErrorCode =
   | "invalid_request"
   | "not_configured"
