@@ -1,9 +1,4 @@
-import { createRequire } from "node:module";
-
 import { defineConfig, devices } from "@playwright/test";
-
-const require = createRequire(import.meta.url);
-const nextBin = require.resolve("next/dist/bin/next");
 
 export default defineConfig({
   testDir: "e2e",
@@ -11,17 +6,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:3100",
+    baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100",
     trace: "retain-on-failure",
-  },
-  webServer: {
-    command: `node "${nextBin}" start -p 3100`,
-    url: "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-    env: {
-      N8N_CHAT_WEBHOOK_URL: "http://127.0.0.1:9/never-called",
-    },
   },
   projects: [
     {

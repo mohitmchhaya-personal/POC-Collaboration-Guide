@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "next build && playwright test"
+    "test:e2e": "next build && node scripts/e2e.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.46.0",
