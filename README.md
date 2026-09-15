@@ -1,8 +1,9 @@
 # SpreadBliss Collaboration Intelligence
 
-SpreadBliss Collaboration Intelligence is a Next.js application that provides
-a secure chat front door for discovering and researching potential nonprofit
-collaboration partners through an existing n8n workflow.
+SpreadBliss Collaboration Intelligence is a Next.js chat application for
+discovering and researching potential nonprofit collaboration partners. The
+current chat UI uses local mock fixtures; a later prompt will wire the
+conversation flow to the server-side n8n integration.
 
 ```text
 Browser → Next.js chat UI → Next.js server API → n8n Chat Trigger
@@ -47,7 +48,9 @@ Open <http://localhost:3000>.
 ## API
 
 `POST /api/chat` is implemented and forwards validated requests to the
-server-side n8n integration. See
+server-side n8n integration. The chat UI currently uses local mock fixtures and
+does not call `/api/chat` yet; the two will be wired together in a later
+prompt. See
 [docs/n8n-integration.md](./docs/n8n-integration.md) for the request,
 response, error, and logging contracts.
 
@@ -65,8 +68,10 @@ npm run typecheck
 
 ## Testing
 
-`npm test` runs Vitest with mocked n8n fetch calls. End-to-end tests remain a
-placeholder for now:
+`npm test` runs Vitest with mocked n8n fetch calls and jsdom component tests.
+The UI uses local mock fixtures until the server route is wired in a later
+prompt. Rich recommendation rendering is also deferred to a later prompt.
+End-to-end tests remain a placeholder for now:
 
 ```bash
 npm test
@@ -90,10 +95,20 @@ app/
   page.tsx
 components/
   chat/
+    ChatShell.tsx
+    ChatComposer.tsx
+    Conversation.tsx
+    AssistantMessage.tsx
+    UserMessage.tsx
+    LoadingMessage.tsx
+    EmptyState.tsx
+    SuggestedPrompt.tsx
   layout/
   ui/
 lib/
   chat/
+    fixtures.ts
+    mock-transport.ts
     session.ts
     types.ts
     validation.ts
