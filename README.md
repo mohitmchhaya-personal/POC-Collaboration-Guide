@@ -22,7 +22,11 @@ npm install
 
 ## Environment configuration
 
-Copy `.env.example` to `.env.local` and configure the server-only variables:
+Create a local environment file and configure the server-only variables:
+
+```bash
+cp .env.example .env.local
+```
 
 - `N8N_CHAT_WEBHOOK_URL` is the only required value.
 - `N8N_CHAT_BASIC_AUTH_USER` is an optional Basic-auth username.
@@ -40,6 +44,13 @@ npm run dev
 
 Open <http://localhost:3000>.
 
+## API
+
+`POST /api/chat` is implemented and forwards validated requests to the
+server-side n8n integration. See
+[docs/n8n-integration.md](./docs/n8n-integration.md) for the request,
+response, error, and logging contracts.
+
 ## Lint
 
 ```bash
@@ -54,15 +65,13 @@ npm run typecheck
 
 ## Testing
 
-Unit and end-to-end test commands are placeholders for now:
+`npm test` runs Vitest with mocked n8n fetch calls. End-to-end tests remain a
+placeholder for now:
 
 ```bash
 npm test
 npm run test:e2e
 ```
-
-The `/api/chat` endpoint currently returns `501` until the n8n integration task
-lands.
 
 ## Production build
 
@@ -89,17 +98,22 @@ lib/
     types.ts
     validation.ts
   n8n/
+    client.ts
+    errors.ts
+    normalize-response.ts
     types.ts
   env.ts
+  logging.ts
 docs/
   n8n-integration.md
+tests/
+  client.test.ts
+  normalize-response.test.ts
+  route.test.ts
+  validation.test.ts
 public/
 .env.example
 ```
-
-The n8n client and response normalization (`lib/n8n/client.ts`,
-`lib/n8n/normalize-response.ts`) are not part of this scaffold; they arrive in
-Prompt 3.
 
 See [AGENTS.md](./AGENTS.md) for repository guidance and
 [docs/n8n-integration.md](./docs/n8n-integration.md) for the n8n boundary.
