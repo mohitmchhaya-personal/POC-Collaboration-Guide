@@ -40,13 +40,13 @@ export const threeRecommendations: ChatResponse = {
 
 export const followUpText = "Santa Clarita follow-up response.";
 
-export function mockChatApi(
+export async function mockChatApi(
   page: Page,
   { delayMs = 0, respond }: MockChatOptions,
-): { calls: ChatCall[] } {
+): Promise<{ calls: ChatCall[] }> {
   const calls: ChatCall[] = [];
 
-  void page.route("**/api/chat", async (route) => {
+  await page.route("**/api/chat", async (route) => {
     const request = route.request();
     const body = JSON.parse(request.postData() ?? "{}") as ChatCall;
     const callIndex = calls.length;

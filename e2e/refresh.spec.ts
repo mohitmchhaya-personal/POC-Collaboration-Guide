@@ -5,7 +5,7 @@ import { mockChatApi, threeRecommendations } from "./helpers/mock-chat";
 test("restores the transcript, recommendations, and session after refresh", async ({
   page,
 }) => {
-  const { calls } = mockChatApi(page, {
+  const { calls } = await mockChatApi(page, {
     respond: (body, callIndex) =>
       callIndex === 0
         ? { ...threeRecommendations, sessionId: body.sessionId }

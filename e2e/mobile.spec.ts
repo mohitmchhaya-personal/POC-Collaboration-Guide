@@ -5,7 +5,7 @@ import { mockChatApi } from "./helpers/mock-chat";
 test("renders the chat flow without horizontal overflow on mobile", async ({
   page,
 }) => {
-  mockChatApi(page, {
+  await mockChatApi(page, {
     respond: (body) => ({
       sessionId: body.sessionId,
       message: { role: "assistant", content: "Mobile response." },

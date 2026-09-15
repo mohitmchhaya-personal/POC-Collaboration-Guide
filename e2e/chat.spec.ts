@@ -9,7 +9,7 @@ import {
 test("completes a desktop research conversation and resets sessions", async ({
   page,
 }) => {
-  const { calls } = mockChatApi(page, {
+  const { calls } = await mockChatApi(page, {
     delayMs: 1500,
     respond: (body, callIndex) => {
       if (callIndex === 0) {

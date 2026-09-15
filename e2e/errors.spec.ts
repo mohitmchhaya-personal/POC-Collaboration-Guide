@@ -5,7 +5,7 @@ import { mockChatApi } from "./helpers/mock-chat";
 test("shows a safe timeout error and retries without duplicating the user message", async ({
   page,
 }) => {
-  const { calls } = mockChatApi(page, {
+  const { calls } = await mockChatApi(page, {
     respond: (body, callIndex) =>
       callIndex === 0
         ? { status: 504, code: "upstream_timeout" }
