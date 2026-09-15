@@ -22,7 +22,7 @@ describe("EmptyState", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Discover and research potential nonprofit collaboration partners.",
+        "Explore potential nonprofit collaboration partners based on mission, geography, programs, populations served, and complementary capabilities.",
       ),
     ).toBeInTheDocument();
     for (const prompt of SUGGESTED_PROMPTS) {

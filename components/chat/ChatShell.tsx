@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-import {
-  createSessionId,
-} from "@/lib/chat/session";
+import { createSessionId } from "@/lib/chat/session";
 import { mockSendChatMessage } from "@/lib/chat/mock-transport";
 import type {
   SendChatMessage,
@@ -27,13 +25,6 @@ export function ChatShell({
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    const sessionTimer = window.setTimeout(() => {
-      setSessionId(createSessionId());
-    }, 0);
-    return () => window.clearTimeout(sessionTimer);
-  }, []);
-
   async function submit(text: string) {
     const message = text.trim();
     if (message.length === 0 || status === "loading") return;
@@ -42,7 +33,7 @@ export function ChatShell({
     if (sessionId === null) setSessionId(activeSessionId);
     setMessages((current) => [
       ...current,
-      { id: createSessionId(), role: "user", content: message },
+      { id: crypto.randomUUID(), role: "user", content: message },
     ]);
     setStatus("loading");
 
@@ -54,7 +45,7 @@ export function ChatShell({
       setMessages((current) => [
         ...current,
         {
-          id: createSessionId(),
+          id: crypto.randomUUID(),
           role: "assistant",
           content: response.message.content,
         },
