@@ -89,13 +89,17 @@ lib/
     types.ts
     validation.ts
   n8n/
-    client.ts
-    normalize-response.ts
     types.ts
+  env.ts
 docs/
   n8n-integration.md
+public/
 .env.example
 ```
+
+The n8n client and response normalization (`lib/n8n/client.ts`,
+`lib/n8n/normalize-response.ts`) are not part of this scaffold; they arrive in
+Prompt 3.
 
 See [AGENTS.md](./AGENTS.md) for repository guidance and
 [docs/n8n-integration.md](./docs/n8n-integration.md) for the n8n boundary.
