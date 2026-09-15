@@ -1,14 +1,39 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { createServer } from "node:net";
 
 const require = createRequire(import.meta.url);
 const nextBin = require.resolve("next/dist/bin/next");
 const playwrightBin = require.resolve("@playwright/test/cli");
-const PORT = process.env.E2E_PORT ?? "3100";
-const url = `http://127.0.0.1:${PORT}`;
+const port =
+  process.env.E2E_PORT ??
+  (await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.unref();
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  }));
+const url = `http://127.0.0.1:${port}`;
 const isWin = process.platform === "win32";
 
-const server = spawn(process.execPath, [nextBin, "start", "-p", PORT], {
+async function isResponding(targetUrl) {
+  try {
+    await fetch(targetUrl, { method: "HEAD" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (await isResponding(url)) {
+  console.error(`Port ${port} is already in use; refusing to start the E2E server`);
+  process.exit(1);
+}
+
+const server = spawn(process.execPath, [nextBin, "start", "-p", port], {
   stdio: ["ignore", "inherit", "inherit"],
   env: {
     ...process.env,

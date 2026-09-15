@@ -116,7 +116,8 @@ npx playwright install chromium
 The Playwright suite builds and starts the production app, then intercepts
 `/api/chat` in the browser with deterministic mocked responses. It never calls
 n8n and does not use an application test backdoor. A Node runner starts and
-stops the production server itself:
+stops the production server itself, picking a free port automatically. Set
+`E2E_PORT` to override the selected port:
 
 ```bash
 npm run test:e2e
