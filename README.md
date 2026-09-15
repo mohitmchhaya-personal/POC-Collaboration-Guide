@@ -26,6 +26,10 @@ This repository never reimplements the n8n workflow.
 
 ## Architecture
 
+![SpreadBliss Collaboration Intelligence architecture: browser to Next.js chat UI and POST /api/chat route, server-only n8n webhook call, n8n Chat Trigger, Collaboration Orchestrator, and specialist workflows](./docs/architecture-diagram.png)
+
+Editable source: [docs/architecture-diagram.svg](./docs/architecture-diagram.svg).
+
 ```mermaid
 flowchart LR
     Browser["Browser"] --> UI["Next.js Chat UI<br/>(React client components)"]
@@ -199,6 +203,8 @@ components/
     SuggestedPrompt.tsx
     UserMessage.tsx
 docs/
+  architecture-diagram.png
+  architecture-diagram.svg
   architecture.md
   demo-script.md
   n8n-integration.md

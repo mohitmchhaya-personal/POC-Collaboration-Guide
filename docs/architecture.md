@@ -10,6 +10,8 @@ and recommendations.
 
 ## System context
 
+![Architecture diagram](./architecture-diagram.png)
+
 ```mermaid
 flowchart LR
     Browser["Browser"] --> UI["Next.js Chat UI<br/>(React client components)"]

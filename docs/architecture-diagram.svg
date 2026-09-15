@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" font-family="Inter, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563EB"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="560" fill="#FFFFFF"/>
+
+  <text x="40" y="48" font-size="22" font-weight="700" fill="#111111">SpreadBliss Collaboration Intelligence — architecture</text>
+  <text x="40" y="74" font-size="14" fill="#555555">Thin Next.js chat front door to an existing n8n multi-agent workflow</text>
+
+  <!-- Zone: this repository -->
+  <rect x="40" y="110" width="620" height="250" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="56" y="136" font-size="13" font-weight="600" fill="#2563EB">THIS REPOSITORY (Next.js 16, Vercel)</text>
+
+  <!-- Browser -->
+  <rect x="60" y="180" width="160" height="110" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="1.5"/>
+  <text x="140" y="222" font-size="16" font-weight="600" fill="#111111" text-anchor="middle">Browser</text>
+  <text x="140" y="246" font-size="12" fill="#555555" text-anchor="middle">Chat UI (React)</text>
+  <text x="140" y="264" font-size="12" fill="#555555" text-anchor="middle">sessionId · sessionStorage</text>
+
+  <!-- API route -->
+  <rect x="280" y="180" width="180" height="110" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="1.5"/>
+  <text x="370" y="216" font-size="16" font-weight="600" fill="#111111" text-anchor="middle">Route Handler</text>
+  <text x="370" y="238" font-size="13" fill="#2563EB" text-anchor="middle" font-family="Menlo, Consolas, monospace">POST /api/chat</text>
+  <text x="370" y="258" font-size="12" fill="#555555" text-anchor="middle">validate · timeout</text>
+  <text x="370" y="275" font-size="12" fill="#555555" text-anchor="middle">normalize · error mapping</text>
+
+  <!-- Server-only env -->
+  <rect x="500" y="200" width="140" height="70" rx="6" fill="#F8F5EF" stroke="#B08D57" stroke-width="1.5"/>
+  <text x="570" y="228" font-size="12" font-weight="600" fill="#111111" text-anchor="middle">Server-only env</text>
+  <text x="570" y="248" font-size="11" fill="#555555" text-anchor="middle" font-family="Menlo, Consolas, monospace">N8N_CHAT_WEBHOOK_URL</text>
+
+  <!-- Zone: n8n -->
+  <rect x="720" y="110" width="440" height="410" rx="8" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="736" y="136" font-size="13" font-weight="600" fill="#111111">EXISTING n8n WORKFLOW (not modified here)</text>
+
+  <!-- Chat Trigger -->
+  <rect x="760" y="180" width="360" height="70" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="1.5"/>
+  <text x="940" y="210" font-size="16" font-weight="600" fill="#111111" text-anchor="middle">Chat Trigger (webhook)</text>
+  <text x="940" y="232" font-size="12" fill="#555555" text-anchor="middle">{ action, sessionId, chatInput } → { output }</text>
+
+  <!-- Orchestrator -->
+  <rect x="760" y="290" width="360" height="60" rx="6" fill="#111111" stroke="#111111"/>
+  <text x="940" y="316" font-size="16" font-weight="600" fill="#FFFFFF" text-anchor="middle">Collaboration Orchestrator</text>
+  <text x="940" y="336" font-size="12" fill="#DDDDDD" text-anchor="middle">conversational memory keyed by sessionId</text>
+
+  <!-- Specialists -->
+  <g font-size="11" fill="#111111" text-anchor="middle">
+    <rect x="760" y="400" width="64" height="80" rx="6" fill="#FFFFFF" stroke="#B08D57" stroke-width="1.5"/>
+    <text x="792" y="436">Nonprofit</text><text x="792" y="452">context</text>
+    <rect x="834" y="400" width="64" height="80" rx="6" fill="#FFFFFF" stroke="#B08D57" stroke-width="1.5"/>
+    <text x="866" y="436">Candidate</text><text x="866" y="452">discovery</text>
+    <rect x="908" y="400" width="64" height="80" rx="6" fill="#FFFFFF" stroke="#B08D57" stroke-width="1.5"/>
+    <text x="940" y="436">You.com</text><text x="940" y="452">research</text>
+    <rect x="982" y="400" width="64" height="80" rx="6" fill="#FFFFFF" stroke="#B08D57" stroke-width="1.5"/>
+    <text x="1014" y="436">Collab.</text><text x="1014" y="452">evaluation</text>
+    <rect x="1056" y="400" width="64" height="80" rx="6" fill="#FFFFFF" stroke="#B08D57" stroke-width="1.5"/>
+    <text x="1088" y="436">Evidence</text><text x="1088" y="452">verification</text>
+  </g>
+  <text x="940" y="505" font-size="12" fill="#555555" text-anchor="middle">Specialist workflows</text>
+
+  <!-- Arrows: browser <-> api -->
+  <line x1="220" y1="222" x2="280" y2="222" stroke="#2563EB" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <line x1="280" y1="252" x2="220" y2="252" stroke="#111111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="250" y="212" font-size="10" fill="#2563EB" text-anchor="middle">message</text>
+  <text x="250" y="268" font-size="10" fill="#555555" text-anchor="middle">response</text>
+
+  <!-- env -> api -->
+  <line x1="500" y1="235" x2="460" y2="235" stroke="#B08D57" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- api -> trigger (over the zone gap) -->
+  <path d="M 460 200 L 480 200 L 480 160 L 700 160 L 700 200 L 760 200" fill="none" stroke="#2563EB" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="590" y="148" font-size="10" fill="#2563EB" text-anchor="middle">HTTPS POST (server-side only)</text>
+  <path d="M 760 232 L 700 232 L 700 330 L 480 330 L 480 285 L 460 285" fill="none" stroke="#111111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="590" y="345" font-size="10" fill="#555555" text-anchor="middle">{ output: string } (Markdown)</text>
+
+  <!-- trigger <-> orchestrator <-> specialists -->
+  <line x1="940" y1="250" x2="940" y2="290" stroke="#111111" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <line x1="940" y1="350" x2="940" y2="400" stroke="#111111" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+
+  <!-- Footnote -->
+  <text x="40" y="400" font-size="12" fill="#555555">Boundary rules</text>
+  <text x="40" y="422" font-size="12" fill="#111111">• The webhook URL and optional Basic-auth values live only on the server; the browser never sees them.</text>
+  <text x="40" y="442" font-size="12" fill="#111111">• The browser receives only a validated ChatResponse; Markdown is rendered without raw HTML and links are http(s)-only.</text>
+  <text x="40" y="462" font-size="12" fill="#111111">• All research, scoring, verification and memory happen in n8n — this repository never reimplements them.</text>
+  <text x="40" y="482" font-size="12" fill="#111111">• One conversation = one opaque sessionId; New conversation starts a fresh session.</text>
+
+  <text x="40" y="540" font-size="11" fill="#B08D57">Black #111111 · Electric Blue #2563EB · Brass Gold #B08D57</text>
+</svg>
