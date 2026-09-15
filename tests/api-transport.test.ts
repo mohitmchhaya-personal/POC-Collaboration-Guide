@@ -119,4 +119,50 @@ describe("sendChatMessageViaApi", () => {
       sendChatMessageViaApi({ sessionId: "session-1", message: "Hello" }),
     ).rejects.toBe(abortError);
   });
+
+  it("keeps valid recommendations from a successful response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            sessionId: "session-1",
+            message: { role: "assistant", content: "A response." },
+            recommendations: [{ name: "Example Partners", score: 82 }],
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      sendChatMessageViaApi({ sessionId: "session-1", message: "Hello" }),
+    ).resolves.toMatchObject({
+      recommendations: [{ name: "Example Partners", score: 82 }],
+    });
+  });
+
+  it("drops malformed recommendations while keeping response content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            sessionId: "session-1",
+            message: { role: "assistant", content: "A response." },
+            recommendations: [
+              { name: "Example Partners" },
+              { name: "Invalid", score: "bad" },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      sendChatMessageViaApi({ sessionId: "session-1", message: "Hello" }),
+    ).resolves.toEqual({
+      sessionId: "session-1",
+      message: { role: "assistant", content: "A response." },
+    });
+  });
 });

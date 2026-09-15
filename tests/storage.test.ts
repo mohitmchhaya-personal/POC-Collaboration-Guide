@@ -17,6 +17,12 @@ const conversation: StoredConversation = {
   ],
 };
 
+const recommendation = {
+  name: "Example Partners",
+  score: 82,
+  sources: [{ url: "https://example.org/about" }],
+};
+
 afterEach(() => {
   sessionStorage.clear();
   vi.restoreAllMocks();
@@ -66,5 +72,45 @@ describe("conversation storage", () => {
     });
 
     expect(loadStoredConversation()).toBeNull();
+  });
+
+  it("round-trips recommendations on assistant messages", () => {
+    const withRecommendation: StoredConversation = {
+      ...conversation,
+      messages: [
+        ...conversation.messages.slice(0, 1),
+        {
+          ...conversation.messages[1],
+          recommendations: [recommendation],
+        },
+      ],
+    };
+    saveStoredConversation(withRecommendation);
+
+    expect(loadStoredConversation()).toEqual(withRecommendation);
+  });
+
+  it("drops malformed recommendations but keeps the message", () => {
+    sessionStorage.setItem(
+      "spreadbliss.conversation.v1",
+      JSON.stringify({
+        sessionId: "session-1",
+        messages: [
+          {
+            id: "message-1",
+            role: "assistant",
+            content: "A response.",
+            recommendations: [{ name: "Invalid", score: "bad" }],
+          },
+        ],
+      }),
+    );
+
+    expect(loadStoredConversation()).toEqual({
+      sessionId: "session-1",
+      messages: [
+        { id: "message-1", role: "assistant", content: "A response." },
+      ],
+    });
   });
 });

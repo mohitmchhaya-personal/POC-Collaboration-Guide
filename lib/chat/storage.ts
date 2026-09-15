@@ -3,6 +3,7 @@ import {
   type StoredConversation,
   type TranscriptMessage,
 } from "./types";
+import { parseRecommendations } from "./recommendation-guards";
 import { isValidSessionId } from "./session";
 
 function isTranscriptMessage(value: unknown): value is TranscriptMessage {
@@ -10,11 +11,22 @@ function isTranscriptMessage(value: unknown): value is TranscriptMessage {
     return false;
   }
   const message = value as Record<string, unknown>;
-  return (
+  if (
+    !(
     typeof message.id === "string" &&
     (message.role === "user" || message.role === "assistant") &&
     typeof message.content === "string"
-  );
+    )
+  ) {
+    return false;
+  }
+  const parsedRecommendations = parseRecommendations(message.recommendations);
+  if (message.recommendations !== undefined && parsedRecommendations) {
+    message.recommendations = parsedRecommendations;
+  } else {
+    delete message.recommendations;
+  }
+  return true;
 }
 
 function isStoredConversation(value: unknown): value is StoredConversation {

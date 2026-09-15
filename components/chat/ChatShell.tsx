@@ -85,6 +85,7 @@ export function ChatShell({
           id: crypto.randomUUID(),
           role: "assistant",
           content: response.message.content,
+          recommendations: response.recommendations,
         },
       ]);
       setStatus("idle");

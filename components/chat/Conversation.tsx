@@ -24,7 +24,11 @@ export function Conversation({ messages, loading }: ConversationProps) {
           message.role === "user" ? (
             <UserMessage key={message.id} content={message.content} />
           ) : (
-            <AssistantMessage key={message.id} content={message.content} />
+            <AssistantMessage
+              key={message.id}
+              content={message.content}
+              recommendations={message.recommendations}
+            />
           ),
         )}
         {loading ? <LoadingMessage /> : null}

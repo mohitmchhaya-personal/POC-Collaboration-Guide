@@ -42,6 +42,7 @@ export type TranscriptMessage = {
   id: string;
   role: ChatRole;
   content: string;
+  recommendations?: Recommendation[];
 };
 
 export type SendChatMessage = (

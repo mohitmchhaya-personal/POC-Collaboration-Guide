@@ -138,6 +138,14 @@ type ChatErrorResponse = {
 | Upstream 5xx or network failure | 502 | `upstream_unavailable` |
 | Empty, invalid JSON, or unrecognized upstream response | 502 | `upstream_malformed` |
 
+## Browser rendering
+
+Validated structured recommendations render as organization cards with
+evidence, collaboration details, and source links. Markdown responses use a
+safe GFM renderer with raw HTML disabled. Plain responses render as text.
+Only HTTP(S) links are rendered as links, and they open in a new tab with
+`noopener noreferrer nofollow`. Recommendation scores are shown verbatim.
+
 ## Logging policy
 
 The server logs structured chat request events containing the request ID,

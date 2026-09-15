@@ -4,6 +4,7 @@ import type {
   ChatRequest,
   SendChatMessage,
 } from "./types";
+import { parseRecommendations } from "./recommendation-guards";
 
 const CHAT_ERROR_CODES: ReadonlySet<string> = new Set([
   "invalid_request",
@@ -92,9 +93,17 @@ export const sendChatMessageViaApi: SendChatMessage = async (
     throw new ChatTransportError("Unrecognized response", response.status);
   }
 
-  const result = { ...(body as ChatResponse) };
-  if (!Array.isArray(result.recommendations)) {
-    delete result.recommendations;
+  const result = body as ChatResponse;
+  const recommendations = parseRecommendations(result.recommendations);
+  if (recommendations === undefined) {
+    return {
+      sessionId: result.sessionId,
+      message: result.message,
+    };
   }
-  return result;
+  return {
+    sessionId: result.sessionId,
+    message: result.message,
+    recommendations,
+  };
 };
