@@ -71,10 +71,14 @@ in n8n, not here.
 - One prompt / task = one PR. Do not start subsequent tasks in the same PR.
 - The PR description must report: branch, files changed, assumptions,
   risks/questions, and verification performed (commands run and results).
-- Agents must **not merge** PRs. A human reviews and merges.
+- Implementation agents must **not merge** PRs. The user-authorized
+  implementation manager reviews the PR, merges it after acceptance, and
+  confirms the merge before assigning the next prompt.
 - Do not edit the n8n workflow from this repository or any task in it.
 - Never commit webhook URLs, credentials, `.env`, `.env.local`, or anything
-  under `.env*` except `.env.example` with **empty** values.
+  under `.env*` except `.env.example`. In `.env.example`, the webhook URL and
+  Basic-auth values must be empty; `N8N_REQUEST_TIMEOUT_MS=180000` is a
+  non-secret default and should be filled in.
 
 ---
 
@@ -93,8 +97,8 @@ in n8n, not here.
 | Server layer    | Next.js Route Handlers (`app/api/**/route.ts`)          |
 
 Pin exact or caret versions in `package.json`; commit `package-lock.json`.
-Prefer dependency versions published at least 7 days ago. Keep the dependency
-footprint minimal.
+Use the latest secure, compatible patch releases and do not delay security
+updates. Keep the dependency footprint minimal.
 
 ### 3.2 Explicitly excluded (do NOT add unless clearly necessary and approved)
 
@@ -129,14 +133,14 @@ lib/
   n8n/
     client.ts               # server-only fetch to n8n (timeout, auth, errors)
     adapter.ts              # request builder + response normalizer (see §4)
-    types.ts                # N8nChatRequest / N8nChatResponse / ChatReply
+    types.ts                # N8nChatRequest / N8nChatResponse / ChatResponse
   session.ts                # sessionId generation + browser persistence
   validation.ts             # message validation (length, type, trimming)
   env.ts                    # server-only env parsing/validation
 docs/
   n8n-integration.md        # the FINAL documented n8n contract (see §4.3)
 tests/                      # unit tests (Vitest or Jest) and e2e (Playwright)
-.env.example                # keys with empty values only
+.env.example                # secrets empty; N8N_REQUEST_TIMEOUT_MS=180000 default
 ```
 
 This layout is a recommendation, not a mandate; keep it flat and boring.
@@ -152,7 +156,7 @@ The n8n **Chat Trigger** node is expected to accept a JSON POST like:
 ```json
 {
   "action": "sendMessage",
-  "sessionId": "<uuid>",
+  "sessionId": "<opaque session id>",
   "chatInput": "<user message>"
 }
 ```
@@ -172,12 +176,33 @@ Requirements:
 
 - Build an **adapter layer** (`lib/n8n/adapter.ts`) that is the *only* place
   in the codebase that knows about n8n's request/response format.
-- The adapter must normalize whatever n8n returns into a stable internal type
-  (e.g. `ChatReply { text: string; raw?: unknown }`), tolerating the common
-  shapes above and failing with a clear, non-leaking error when unrecognized.
+- The adapter must normalize whatever n8n returns into the stable browser
+  contract below, tolerating the common shapes above and failing with a
+  clear, non-leaking error when unrecognized.
 - The UI must consume only the normalized type — never the raw n8n payload.
 - Log the *shape* (keys / type) of unrecognized responses in development to
   aid contract discovery; never log full content in production.
+
+#### Internal browser contract (stable; owned by this repo)
+
+This is what `POST /api/chat` returns to the browser. It is distinct from the
+live n8n contract above, which remains unverified until confirmed against the
+deployed workflow.
+
+```ts
+type ChatResponse = {
+  sessionId: string;
+  message: { role: "assistant"; content: string };
+  recommendations?: Recommendation[]; // typed, validated structured data
+};
+```
+
+- `recommendations` is optional and present only when n8n returns structured
+  recommendation data that passes server-side validation against a typed
+  schema (`Recommendation` to be defined in `lib/n8n/types.ts` once the live
+  shape is known).
+- **Never** pass arbitrary raw upstream payloads (e.g. a `raw` field) to the
+  browser. Unvalidated or unrecognized structured data is dropped server-side.
 
 ### 4.3 Documenting the contract
 
@@ -196,9 +221,12 @@ Keep the document updated whenever the adapter changes.
 ### 4.4 Session design
 
 - One browser conversation ↔ one n8n `sessionId`.
-- The `sessionId` is generated **in the browser** (`crypto.randomUUID()`), kept
-  in client state (optionally `sessionStorage`), and sent with **every**
+- The `sessionId` is generated **in the browser** with `crypto.randomUUID()`,
+  kept in client state (optionally `sessionStorage`), and sent with **every**
   follow-up message so n8n's conversational memory continues.
+- The API treats `sessionId` as an **opaque identifier** with reasonable
+  validation (non-empty string, bounded length, safe character set). It must
+  **not** require UUID-only identifiers.
 - **New Conversation** must:
   1. generate a fresh `sessionId`, and
   2. clear the visible transcript.
@@ -225,7 +253,9 @@ Rules:
   server code (Route Handlers / `lib/env.ts` marked `import "server-only"`).
 - **Never** expose the webhook URL to browser code, client bundles, HTML,
   logs, error messages, or the PR/issue tracker.
-- Provide `.env.example` with the keys above and **empty values**.
+- Provide `.env.example` with the keys above: `N8N_CHAT_WEBHOOK_URL`,
+  `N8N_CHAT_BASIC_AUTH_USER`, and `N8N_CHAT_BASIC_AUTH_PASSWORD` empty;
+  `N8N_REQUEST_TIMEOUT_MS=180000` as the documented non-secret default.
 - Fail fast with a clear server-side error if `N8N_CHAT_WEBHOOK_URL` is missing;
   return a generic error to the client.
 
@@ -237,8 +267,9 @@ These are mandatory for every implementation PR:
 
 1. **n8n endpoint stays server-side.** Only the Route Handler calls n8n.
 2. **Validate incoming chat messages** on the server: must be a non-empty
-   string after trimming, enforce a maximum length (e.g. 2,000–4,000 chars),
-   reject non-string / malformed bodies, validate `sessionId` format (UUID).
+   string after trimming, enforce a maximum length of **4,000 characters**,
+   reject non-string / malformed bodies, and validate `sessionId` as a
+   reasonably constrained opaque identifier (see §4.4) — not UUID-only.
 3. **Do not render arbitrary HTML returned by AI.** Render as plain text or via
    a markdown renderer with HTML disabled/sanitized. Never use
    `dangerouslySetInnerHTML` with model output.
@@ -353,6 +384,8 @@ Track answers in `docs/n8n-integration.md` and PR descriptions.
 3. Is the Chat Trigger protected by Basic auth, a header token, or none?
 4. Does n8n respond synchronously within the timeout, or stream (SSE)?
    Streaming support is out of scope unless explicitly requested.
-5. Maximum practical message length before n8n rejects or truncates input?
+5. Does n8n accept the 4,000-character server limit without truncating input?
+7. Does n8n return structured recommendation data, and in what shape, so
+   `Recommendation` can be typed and validated?
 6. Deployment target for the POC (e.g. Vercel) — affects function timeout
    limits versus `N8N_REQUEST_TIMEOUT_MS=180000`.
