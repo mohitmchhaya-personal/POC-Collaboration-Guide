@@ -46,6 +46,7 @@ export type TranscriptMessage = {
 
 export type SendChatMessage = (
   request: ChatRequest,
+  options?: { signal?: AbortSignal },
 ) => Promise<ChatResponse>;
 
 export type ChatErrorCode =
@@ -63,6 +64,13 @@ export type ChatErrorResponse = {
   error: string;
   code: ChatErrorCode;
   requestId: string;
+};
+
+export const CONVERSATION_STORAGE_KEY = "spreadbliss.conversation.v1";
+
+export type StoredConversation = {
+  sessionId: string;
+  messages: TranscriptMessage[];
 };
 
 export const MAX_MESSAGE_LENGTH = 4000;

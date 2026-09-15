@@ -8,7 +8,10 @@ import { ChatShell } from "@/components/chat/ChatShell";
 import { SUGGESTED_PROMPTS } from "@/components/chat/EmptyState";
 import type { ChatResponse, SendChatMessage } from "@/lib/chat/types";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  sessionStorage.clear();
+});
 
 function response(content: string): ChatResponse {
   return {
@@ -62,10 +65,13 @@ describe("ChatShell", () => {
     await user.keyboard("{Enter}");
     await screen.findByText("Typed response.");
 
-    expect(sendMessage).toHaveBeenCalledWith({
-      sessionId: expect.any(String),
-      message: "Typed question",
-    });
+    expect(sendMessage).toHaveBeenCalledWith(
+      {
+        sessionId: expect.any(String),
+        message: "Typed question",
+      },
+      { signal: expect.anything() },
+    );
   });
 
   it("shows loading while the transport is pending", async () => {
@@ -81,7 +87,7 @@ describe("ChatShell", () => {
       screen.getByRole("button", { name: SUGGESTED_PROMPTS[1] }),
     );
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Researching potential partners…",
+      "Researching potential collaboration opportunities…",
     );
 
     resolve(response("Done."));
@@ -101,8 +107,73 @@ describe("ChatShell", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
-      "Something went wrong. Please try again.",
+      "We couldn't complete that research request. Please try again.",
     );
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("uses the same session for a follow-up message", async () => {
+    const user = userEvent.setup();
+    const sendMessage = vi
+      .fn<SendChatMessage>()
+      .mockResolvedValueOnce(response("First response."))
+      .mockResolvedValueOnce(response("Second response."));
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    await screen.findByText("First response.");
+    const firstSessionId = sendMessage.mock.calls[0]?.[0].sessionId;
+
+    const textarea = screen.getByLabelText("Message");
+    await user.type(textarea, "Follow-up question");
+    await user.keyboard("{Enter}");
+    await screen.findByText("Second response.");
+
+    expect(sendMessage.mock.calls[1]?.[0].sessionId).toBe(firstSessionId);
+  });
+
+  it("prevents duplicate submissions while a request is pending", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<ChatResponse>();
+    const sendMessage = vi.fn<SendChatMessage>().mockReturnValue(pending.promise);
+    render(<ChatShell sendMessage={sendMessage} />);
+    const textarea = screen.getByLabelText("Message");
+
+    await user.type(textarea, "One request");
+    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}");
+
+    expect(sendMessage).toHaveBeenCalledOnce();
+    pending.resolve(response("One response."));
+    await screen.findByText("One response.");
+  });
+
+  it("retries a failed message without adding a duplicate user entry", async () => {
+    const user = userEvent.setup();
+    const sendMessage = vi
+      .fn<SendChatMessage>()
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce(response("Retried response."));
+    render(<ChatShell sendMessage={sendMessage} />);
+    const textarea = screen.getByLabelText("Message");
+
+    await user.type(textarea, "Research this opportunity");
+    await user.keyboard("{Enter}");
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("Retried response.");
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage.mock.calls[1]?.[0]).toEqual({
+      sessionId: sendMessage.mock.calls[0]?.[0].sessionId,
+      message: "Research this opportunity",
+    });
+    expect(
+      screen.getAllByText("Research this opportunity"),
+    ).toHaveLength(1);
   });
 
   it("clears the transcript and creates a new session", async () => {
@@ -150,6 +221,67 @@ describe("ChatShell", () => {
     fetchSpy.mockRestore();
   });
 
+  it("restores the transcript and session after a reload", async () => {
+    const user = userEvent.setup();
+    const firstSendMessage = vi
+      .fn<SendChatMessage>()
+      .mockResolvedValue(response("Persisted response."));
+    const firstRender = render(<ChatShell sendMessage={firstSendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    await screen.findByText("Persisted response.");
+    await waitFor(() =>
+      expect(sessionStorage.getItem("spreadbliss.conversation.v1")).toContain(
+        "Persisted response.",
+      ),
+    );
+    const sessionId = firstSendMessage.mock.calls[0]?.[0].sessionId;
+    firstRender.unmount();
+
+    const secondSendMessage = vi
+      .fn<SendChatMessage>()
+      .mockResolvedValue(response("Follow-up response."));
+    render(<ChatShell sendMessage={secondSendMessage} />);
+    expect(await screen.findByText("Persisted response.")).toBeInTheDocument();
+
+    const textarea = screen.getByLabelText("Message");
+    await user.type(textarea, "Continue research");
+    await user.keyboard("{Enter}");
+    await screen.findByText("Follow-up response.");
+
+    expect(secondSendMessage.mock.calls[0]?.[0].sessionId).toBe(sessionId);
+  });
+
+  it("uses the API transport by default", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(
+      async (...args: Parameters<typeof fetch>) => {
+        void args;
+        return new Response(
+          JSON.stringify({
+            sessionId: "api-session",
+            message: { role: "assistant", content: "API response." },
+          }),
+          { status: 200 },
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ChatShell />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    await screen.findByText("API response.");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/chat",
+      expect.objectContaining({ method: "POST", cache: "no-store" }),
+    );
+  });
+
   it("ignores a stale success after starting a new conversation", async () => {
     const user = userEvent.setup();
     const pending = deferred<ChatResponse>();
@@ -159,7 +291,9 @@ describe("ChatShell", () => {
     await user.click(
       screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
     );
+    const signal = sendMessage.mock.calls[0]?.[1]?.signal;
     await user.click(screen.getByRole("button", { name: "New conversation" }));
+    expect(signal?.aborted).toBe(true);
 
     expect(
       screen.getByRole("heading", {

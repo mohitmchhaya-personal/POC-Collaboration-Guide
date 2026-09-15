@@ -2,8 +2,8 @@
 
 SpreadBliss Collaboration Intelligence is a Next.js chat application for
 discovering and researching potential nonprofit collaboration partners. The
-current chat UI uses local mock fixtures; a later prompt will wire the
-conversation flow to the server-side n8n integration.
+chat UI calls the server-side `/api/chat` route and preserves the current
+conversation in browser session storage across refreshes.
 
 ```text
 Browser → Next.js chat UI → Next.js server API → n8n Chat Trigger
@@ -39,6 +39,10 @@ Do not expose these variables with a `NEXT_PUBLIC_` prefix.
 
 ## Local development
 
+Copy `.env.example` to `.env.local` and configure the server-only n8n values
+for real responses. The UI and tests can run with mocked responses, but live
+chat responses require the local environment to be configured.
+
 ```bash
 npm run dev
 ```
@@ -47,10 +51,9 @@ Open <http://localhost:3000>.
 
 ## API
 
-`POST /api/chat` is implemented and forwards validated requests to the
-server-side n8n integration. The chat UI currently uses local mock fixtures and
-does not call `/api/chat` yet; the two will be wired together in a later
-prompt. See
+`POST /api/chat` is implemented and the chat UI calls it through a client-safe
+transport. The current session ID and transcript are stored in
+`sessionStorage` only, with no permanent storage or user account. See
 [docs/n8n-integration.md](./docs/n8n-integration.md) for the request,
 response, error, and logging contracts.
 
@@ -68,10 +71,9 @@ npm run typecheck
 
 ## Testing
 
-`npm test` runs Vitest with mocked n8n fetch calls and jsdom component tests.
-The UI uses local mock fixtures until the server route is wired in a later
-prompt. Rich recommendation rendering is also deferred to a later prompt.
-End-to-end tests remain a placeholder for now:
+`npm test` runs Vitest with mocked n8n fetch calls, API transport tests, storage
+tests, and jsdom component tests. End-to-end tests remain a placeholder for
+now:
 
 ```bash
 npm test
@@ -107,9 +109,11 @@ components/
   ui/
 lib/
   chat/
+    api-transport.ts
     fixtures.ts
     mock-transport.ts
     session.ts
+    storage.ts
     types.ts
     validation.ts
   n8n/
