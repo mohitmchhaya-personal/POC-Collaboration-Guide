@@ -113,4 +113,49 @@ describe("conversation storage", () => {
       ],
     });
   });
+
+  it("strips unknown keys from stored recommendation sources", () => {
+    sessionStorage.setItem(
+      "spreadbliss.conversation.v1",
+      JSON.stringify({
+        sessionId: "session-1",
+        messages: [
+          {
+            id: "message-1",
+            role: "assistant",
+            content: "A response.",
+            recommendations: [
+              {
+                name: "Example Partners",
+                sources: [
+                  {
+                    url: "https://example.org/about",
+                    title: "About",
+                    tracking: { campaign: "ignored" },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(loadStoredConversation()).toEqual({
+      sessionId: "session-1",
+      messages: [
+        {
+          id: "message-1",
+          role: "assistant",
+          content: "A response.",
+          recommendations: [
+            {
+              name: "Example Partners",
+              sources: [{ url: "https://example.org/about", title: "About" }],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

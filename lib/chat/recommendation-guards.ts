@@ -34,6 +34,16 @@ export function isRecommendationSource(
   );
 }
 
+export function pickRecommendationSource(
+  value: unknown,
+): RecommendationSource | null {
+  if (!isRecommendationSource(value)) return null;
+  const source: RecommendationSource = value;
+  return source.title !== undefined
+    ? { url: source.url, title: source.title }
+    : { url: source.url };
+}
+
 export function isEvidenceQuality(value: unknown): value is EvidenceQuality {
   return typeof value === "string" && EVIDENCE_QUALITIES.has(value);
 }
@@ -92,7 +102,11 @@ export function pickRecommendation(value: unknown): Recommendation | null {
     picked.evidenceQuality = recommendation.evidenceQuality;
   }
   if (recommendation.sources !== undefined) {
-    picked.sources = recommendation.sources;
+    const sources = recommendation.sources.map(pickRecommendationSource);
+    if (sources.some((source) => source === null)) return null;
+    picked.sources = sources.filter(
+      (source): source is RecommendationSource => source !== null,
+    );
   }
   return picked;
 }

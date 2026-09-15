@@ -38,6 +38,25 @@ describe("recommendation guards", () => {
     ).toEqual(fullRecommendation);
   });
 
+  it("strips unknown keys from recommendation sources", () => {
+    expect(
+      pickRecommendation({
+        name: "Example",
+        sources: [
+          {
+            url: "https://example.org",
+            title: "Example",
+            snippet: "x",
+            tracking: { campaign: "test" },
+          },
+        ],
+      }),
+    ).toEqual({
+      name: "Example",
+      sources: [{ url: "https://example.org", title: "Example" }],
+    });
+  });
+
   it("drops the whole array when any item is malformed", () => {
     expect(
       parseRecommendations([fullRecommendation, { name: "Invalid", score: "bad" }]),

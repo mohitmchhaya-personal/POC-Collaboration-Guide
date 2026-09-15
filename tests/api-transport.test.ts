@@ -128,17 +128,59 @@ describe("sendChatMessageViaApi", () => {
           JSON.stringify({
             sessionId: "session-1",
             message: { role: "assistant", content: "A response." },
-            recommendations: [{ name: "Example Partners", score: 82 }],
+            recommendations: [
+              {
+                name: "Example Partners",
+                score: 82,
+                sources: [
+                  {
+                    url: "https://example.org/about",
+                    title: "About",
+                    snippet: "remove",
+                  },
+                ],
+              },
+            ],
+            extra: { ignored: true },
           }),
         ),
       ),
     );
 
-    await expect(
-      sendChatMessageViaApi({ sessionId: "session-1", message: "Hello" }),
-    ).resolves.toMatchObject({
-      recommendations: [{ name: "Example Partners", score: 82 }],
+    const result = await sendChatMessageViaApi({
+      sessionId: "session-1",
+      message: "Hello",
     });
+    expect(Object.keys(result).sort()).toEqual([
+      "message",
+      "recommendations",
+      "sessionId",
+    ]);
+    expect(result.recommendations?.[0]?.sources?.[0]).toEqual({
+      url: "https://example.org/about",
+      title: "About",
+    });
+  });
+
+  it("drops extra top-level keys from a successful response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            sessionId: "session-1",
+            message: { role: "assistant", content: "A response." },
+            requestId: "ignored",
+          }),
+        ),
+      ),
+    );
+
+    const result = await sendChatMessageViaApi({
+      sessionId: "session-1",
+      message: "Hello",
+    });
+    expect(Object.keys(result).sort()).toEqual(["message", "sessionId"]);
   });
 
   it("drops malformed recommendations while keeping response content", async () => {
