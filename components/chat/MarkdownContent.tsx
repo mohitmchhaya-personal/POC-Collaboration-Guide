@@ -80,11 +80,6 @@ type MarkdownContentProps = {
 };
 
 export function MarkdownContent({ content }: MarkdownContentProps) {
-  const contentWithEscapedHtml = content.replace(
-    /<(?=\/?[A-Za-z][^>]*>)/g,
-    "&lt;",
-  );
-
   return (
     <ReactMarkdown
       allowedElements={[
@@ -116,7 +111,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
       remarkPlugins={[remarkGfm]}
       components={components}
     >
-      {contentWithEscapedHtml}
+      {content}
     </ReactMarkdown>
   );
 }

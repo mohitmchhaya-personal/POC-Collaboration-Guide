@@ -94,7 +94,7 @@ export function RecommendationCard({
                   <ExternalLinkAnchor
                     href={source.url}
                   >
-                    {source.title ?? new URL(source.url).hostname}
+                    {source.title?.trim() || new URL(source.url).hostname}
                   </ExternalLinkAnchor>
                 </li>
               ))}

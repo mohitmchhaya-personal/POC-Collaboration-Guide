@@ -71,29 +71,28 @@ export function isRecommendation(value: unknown): value is Recommendation {
 
 export function pickRecommendation(value: unknown): Recommendation | null {
   if (!isRecommendation(value)) return null;
-  const recommendation = value as Record<string, unknown>;
-  const picked: Recommendation = { name: recommendation.name as string };
+  const recommendation: Recommendation = value;
+  const picked: Recommendation = { name: recommendation.name };
   if (recommendation.score !== undefined) {
-    picked.score = recommendation.score as number;
+    picked.score = recommendation.score;
   }
   if (recommendation.whyThisFits !== undefined) {
-    picked.whyThisFits = recommendation.whyThisFits as string;
+    picked.whyThisFits = recommendation.whyThisFits;
   }
   if (recommendation.collaborationOpportunity !== undefined) {
-    picked.collaborationOpportunity =
-      recommendation.collaborationOpportunity as string;
+    picked.collaborationOpportunity = recommendation.collaborationOpportunity;
   }
   if (recommendation.strengths !== undefined) {
-    picked.strengths = recommendation.strengths as string[];
+    picked.strengths = recommendation.strengths;
   }
   if (recommendation.considerations !== undefined) {
-    picked.considerations = recommendation.considerations as string[];
+    picked.considerations = recommendation.considerations;
   }
   if (recommendation.evidenceQuality !== undefined) {
-    picked.evidenceQuality = recommendation.evidenceQuality as EvidenceQuality;
+    picked.evidenceQuality = recommendation.evidenceQuality;
   }
   if (recommendation.sources !== undefined) {
-    picked.sources = recommendation.sources as RecommendationSource[];
+    picked.sources = recommendation.sources;
   }
   return picked;
 }

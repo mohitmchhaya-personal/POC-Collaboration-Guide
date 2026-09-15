@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AssistantMessage } from "@/components/chat/AssistantMessage";
 import type { Recommendation } from "@/lib/chat/types";
@@ -68,20 +68,33 @@ describe("AssistantMessage", () => {
   });
 
   it("does not render raw HTML elements", () => {
+    const handler = vi.fn();
+    Object.defineProperty(window, "prompt6Handler", {
+      configurable: true,
+      value: handler,
+    });
     const { container } = render(
       <AssistantMessage
         content={`# Safe text
 
 <script>alert(1)</script>
 
-<img src="x" onerror="alert(1)" />`}
+<img src="x" onerror="window.prompt6Handler()" />`}
       />,
     );
 
     expect(container.querySelector("script")).not.toBeInTheDocument();
     expect(container.querySelector("img")).not.toBeInTheDocument();
-    expect(container.textContent).toContain("alert(1)");
-    expect(container.textContent).toContain("onerror");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("renders safe autolinks", () => {
+    render(<AssistantMessage content="<https://example.org/report>" />);
+
+    const link = screen.getByRole("link", { name: /example.org\/report/ });
+    expect(link).toHaveAttribute("href", "https://example.org/report");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer nofollow");
   });
 
   it("renders all paragraphs in a long response", () => {
@@ -127,7 +140,7 @@ describe("AssistantMessage", () => {
             name: "No Score Partner",
             sources: [
               { title: "Named source", url: "https://example.org/named" },
-              { url: "https://example.net/fallback" },
+              { title: "  ", url: "https://example.net/fallback" },
             ],
           },
         ]}
