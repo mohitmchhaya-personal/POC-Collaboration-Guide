@@ -6,17 +6,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChatShell } from "@/components/chat/ChatShell";
 import { SUGGESTED_PROMPTS } from "@/components/chat/EmptyState";
-import type { ChatResponse, SendChatMessage } from "@/lib/chat/types";
+import type {
+  ChatResponse,
+  Recommendation,
+  SendChatMessage,
+} from "@/lib/chat/types";
 
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
 });
 
-function response(content: string): ChatResponse {
+function response(
+  content: string,
+  recommendations?: Recommendation[],
+): ChatResponse {
   return {
     sessionId: "fixture-session",
     message: { role: "assistant", content },
+    recommendations,
   };
 }
 
@@ -252,6 +260,38 @@ describe("ChatShell", () => {
     await screen.findByText("Follow-up response.");
 
     expect(secondSendMessage.mock.calls[0]?.[0].sessionId).toBe(sessionId);
+  });
+
+  it("renders and restores recommendations with the assistant response", async () => {
+    const user = userEvent.setup();
+    const recommendations: Recommendation[] = [
+      { name: "Persisted Partner", score: 88 },
+    ];
+    const firstSendMessage = vi
+      .fn<SendChatMessage>()
+      .mockResolvedValue(response("Research with recommendations.", recommendations));
+    const firstRender = render(<ChatShell sendMessage={firstSendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    expect(await screen.findByText("Persisted Partner")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(sessionStorage.getItem("spreadbliss.conversation.v1")).toContain(
+        "Persisted Partner",
+      ),
+    );
+    firstRender.unmount();
+
+    render(
+      <ChatShell
+        sendMessage={vi
+          .fn<SendChatMessage>()
+          .mockResolvedValue(response("Unused response."))}
+      />,
+    );
+    expect(await screen.findByText("Persisted Partner")).toBeInTheDocument();
+    expect(screen.getByText("Collaboration score")).toBeInTheDocument();
   });
 
   it("uses the API transport by default", async () => {

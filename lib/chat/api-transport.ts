@@ -1,9 +1,9 @@
 import type {
   ChatErrorCode,
-  ChatResponse,
   ChatRequest,
   SendChatMessage,
 } from "./types";
+import { parseRecommendations } from "./recommendation-guards";
 
 const CHAT_ERROR_CODES: ReadonlySet<string> = new Set([
   "invalid_request",
@@ -33,18 +33,30 @@ function isChatErrorCode(value: unknown): value is ChatErrorCode {
   return typeof value === "string" && CHAT_ERROR_CODES.has(value);
 }
 
-function isChatResponse(value: unknown): value is ChatResponse {
+type ChatResponseEnvelope = {
+  sessionId: string;
+  message: { role: "assistant"; content: string };
+  recommendations?: unknown;
+};
+
+function isChatResponseEnvelope(
+  value: unknown,
+): value is ChatResponseEnvelope {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
   const candidate = value as {
     sessionId?: unknown;
-    message?: { role?: unknown; content?: unknown };
+    message?: unknown;
   };
+  const message = candidate.message;
   return (
     typeof candidate.sessionId === "string" &&
-    candidate.message?.role === "assistant" &&
-    typeof candidate.message.content === "string"
+    typeof message === "object" &&
+    message !== null &&
+    !Array.isArray(message) &&
+    (message as { role?: unknown }).role === "assistant" &&
+    typeof (message as { content?: unknown }).content === "string"
   );
 }
 
@@ -88,13 +100,17 @@ export const sendChatMessageViaApi: SendChatMessage = async (
   } catch {
     throw new ChatTransportError("Unrecognized response", response.status);
   }
-  if (!isChatResponse(body)) {
+  if (!isChatResponseEnvelope(body)) {
     throw new ChatTransportError("Unrecognized response", response.status);
   }
 
-  const result = { ...(body as ChatResponse) };
-  if (!Array.isArray(result.recommendations)) {
-    delete result.recommendations;
-  }
-  return result;
+  const recommendations = parseRecommendations(body.recommendations);
+  return {
+    sessionId: body.sessionId,
+    message: {
+      role: "assistant",
+      content: body.message.content,
+    },
+    ...(recommendations ? { recommendations } : {}),
+  };
 };

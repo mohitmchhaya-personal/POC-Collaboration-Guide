@@ -55,7 +55,9 @@ Open <http://localhost:3000>.
 transport. The current session ID and transcript are stored in
 `sessionStorage` only, with no permanent storage or user account. See
 [docs/n8n-integration.md](./docs/n8n-integration.md) for the request,
-response, error, and logging contracts.
+response, error, and logging contracts. Assistant responses support GitHub
+Flavored Markdown through a safe renderer with raw HTML disabled, and validated
+structured recommendations appear as organization cards with source links.
 
 ## Lint
 
@@ -72,8 +74,10 @@ npm run typecheck
 ## Testing
 
 `npm test` runs Vitest with mocked n8n fetch calls, API transport tests, storage
-tests, and jsdom component tests. End-to-end tests remain a placeholder for
-now:
+tests, recommendation-guard tests, and jsdom component tests. Markdown uses
+GFM syntax without raw HTML rendering; recommendation cards render validated
+organization details and HTTP(S) sources in a new tab. End-to-end tests remain
+a placeholder for now:
 
 ```bash
 npm test
@@ -101,6 +105,9 @@ components/
     ChatComposer.tsx
     Conversation.tsx
     AssistantMessage.tsx
+    MarkdownContent.tsx
+    RecommendationCard.tsx
+    ExternalLinkAnchor.tsx
     UserMessage.tsx
     LoadingMessage.tsx
     EmptyState.tsx
