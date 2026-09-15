@@ -132,7 +132,7 @@ or memory logic.
 
 ## Testing strategy
 
-Vitest runs the 16 remaining test files with n8n and fetch interactions mocked;
+Vitest runs 16 test files (160 tests) with n8n and fetch interactions mocked;
 tests never call a live n8n endpoint. Playwright runs four mocked browser
 tests: three in the desktop Chromium project and one in the Pixel 7 mobile
 project. The E2E route handler intercepts `/api/chat` in the browser, so the

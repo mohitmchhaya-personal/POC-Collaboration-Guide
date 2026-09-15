@@ -186,7 +186,6 @@ app/
   page.tsx
 components/
   chat/
-    .gitkeep
     AssistantMessage.tsx
     ChatComposer.tsx
     ChatHeader.tsx
