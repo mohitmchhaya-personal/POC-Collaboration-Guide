@@ -24,11 +24,13 @@ export function ChatShell({
   const [messages, setMessages] = useState<TranscriptMessage[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const conversationRef = useRef(0);
 
   async function submit(text: string) {
     const message = text.trim();
     if (message.length === 0 || status === "loading") return;
 
+    const generation = conversationRef.current;
     const activeSessionId = sessionId ?? createSessionId();
     if (sessionId === null) setSessionId(activeSessionId);
     setMessages((current) => [
@@ -42,6 +44,7 @@ export function ChatShell({
         sessionId: activeSessionId,
         message,
       });
+      if (generation !== conversationRef.current) return;
       setMessages((current) => [
         ...current,
         {
@@ -52,11 +55,13 @@ export function ChatShell({
       ]);
       setStatus("idle");
     } catch {
+      if (generation !== conversationRef.current) return;
       setStatus("error");
     }
   }
 
   function newConversation() {
+    conversationRef.current += 1;
     setSessionId(createSessionId());
     setMessages([]);
     setStatus("idle");

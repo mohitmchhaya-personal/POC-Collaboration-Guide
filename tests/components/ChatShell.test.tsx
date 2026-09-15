@@ -17,6 +17,16 @@ function response(content: string): ChatResponse {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 describe("ChatShell", () => {
   it("sends a suggested prompt and renders the assistant response", async () => {
     const user = userEvent.setup();
@@ -138,5 +148,86 @@ describe("ChatShell", () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it("ignores a stale success after starting a new conversation", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<ChatResponse>();
+    const sendMessage = vi.fn<SendChatMessage>().mockReturnValue(pending.promise);
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    await user.click(screen.getByRole("button", { name: "New conversation" }));
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Find organizations you could accomplish more with.",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    pending.resolve(response("Stale assistant response."));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByText("Stale assistant response.")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", {
+      name: "Find organizations you could accomplish more with.",
+    })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+  });
+
+  it("ignores a stale rejection after starting a new conversation", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<ChatResponse>();
+    const sendMessage = vi.fn<SendChatMessage>().mockReturnValue(pending.promise);
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[1] }),
+    );
+    await user.click(screen.getByRole("button", { name: "New conversation" }));
+
+    pending.reject(new Error("stale failure"));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", {
+      name: "Find organizations you could accomplish more with.",
+    })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+  });
+
+  it("uses a new session and renders a response after resetting a pending conversation", async () => {
+    const user = userEvent.setup();
+    const firstPending = deferred<ChatResponse>();
+    const secondPending = deferred<ChatResponse>();
+    const sendMessage = vi
+      .fn<SendChatMessage>()
+      .mockReturnValueOnce(firstPending.promise)
+      .mockReturnValueOnce(secondPending.promise);
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    const firstSessionId = sendMessage.mock.calls[0]?.[0].sessionId;
+    await user.click(screen.getByRole("button", { name: "New conversation" }));
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[2] }),
+    );
+
+    const secondSessionId = sendMessage.mock.calls[1]?.[0].sessionId;
+    expect(secondSessionId).not.toBe(firstSessionId);
+
+    secondPending.resolve(response("Fresh assistant response."));
+    expect(
+      await screen.findByText("Fresh assistant response."),
+    ).toBeInTheDocument();
+    firstPending.resolve(response("Stale assistant response."));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText("Fresh assistant response.")).toBeInTheDocument();
   });
 });
