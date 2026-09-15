@@ -29,4 +29,17 @@ describe("createMockTransport", () => {
     expect(response.message.content.length).toBeGreaterThan(0);
     expect(response.message.content).toContain(marker);
   });
+
+  it("rejects with AbortError when cancelled", async () => {
+    const controller = new AbortController();
+    const sendMessage = createMockTransport({ delayMs: 50 });
+    const request = sendMessage(
+      { sessionId: "session-1", message: "Hello" },
+      { signal: controller.signal },
+    );
+
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: "AbortError" });
+  });
 });

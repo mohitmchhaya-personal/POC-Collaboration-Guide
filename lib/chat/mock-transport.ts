@@ -28,9 +28,21 @@ export function createMockTransport(
 ): SendChatMessage {
   const delayMs = options.delayMs ?? 600;
 
-  return async (request: ChatRequest): Promise<ChatResponse> => {
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, delayMs);
+  return async (
+    request: ChatRequest,
+    options = {},
+  ): Promise<ChatResponse> => {
+    if (options.signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(resolve, delayMs);
+      const abort = () => {
+        clearTimeout(timeout);
+        reject(new DOMException("The operation was aborted.", "AbortError"));
+      };
+      options.signal?.addEventListener("abort", abort, { once: true });
     });
     const fixture = selectFixture(request.message);
     return {
