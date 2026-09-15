@@ -5,10 +5,26 @@ export type ChatMessage = {
   content: string;
 };
 
+export type EvidenceQuality = "high" | "medium" | "low" | "unknown";
+
+export type RecommendationSource = {
+  title?: string;
+  url: string;
+};
+
+/**
+ * Structured recommendation preserved from n8n. Only recognized, validated
+ * fields are kept; `name` is required and nothing is synthesized.
+ */
 export type Recommendation = {
   name: string;
-  summary: string;
-  url?: string;
+  score?: number;
+  whyThisFits?: string;
+  collaborationOpportunity?: string;
+  strengths?: string[];
+  considerations?: string[];
+  evidenceQuality?: EvidenceQuality;
+  sources?: RecommendationSource[];
 };
 
 export type ChatRequest = {
@@ -20,6 +36,23 @@ export type ChatResponse = {
   sessionId: string;
   message: { role: "assistant"; content: string };
   recommendations?: Recommendation[];
+};
+
+export type ChatErrorCode =
+  | "invalid_request"
+  | "not_configured"
+  | "upstream_auth"
+  | "upstream_not_found"
+  | "upstream_rejected"
+  | "upstream_rate_limited"
+  | "upstream_timeout"
+  | "upstream_unavailable"
+  | "upstream_malformed";
+
+export type ChatErrorResponse = {
+  error: string;
+  code: ChatErrorCode;
+  requestId: string;
 };
 
 export const MAX_MESSAGE_LENGTH = 4000;
