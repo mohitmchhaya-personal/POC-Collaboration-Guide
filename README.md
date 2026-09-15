@@ -8,6 +8,9 @@ orchestrator receives a nonprofit's request, retrieves its profile, discovers
 possible partners, researches them, scores collaboration fit, verifies the
 supporting evidence, and returns up to three recommendations.
 
+**Live demo:** <https://spreadbliss-collaboration-intellige.vercel.app>
+(see [Deployment](#deployment)).
+
 **n8n handles** (one workflow per responsibility):
 
 - nonprofit context — `01_Get_Organization_Context`
@@ -184,6 +187,42 @@ npm start
 
 The default port is 3000. `.env.local` or the real runtime environment must
 provide `N8N_CHAT_WEBHOOK_URL`.
+
+## Deployment
+
+The application is deployed on Vercel (free Hobby plan) as a standard Next.js
+project. There is no separate backend to host: `POST /api/chat` runs as a
+Vercel serverless function and calls the n8n Chat Trigger server-side.
+
+**Live URL:** <https://spreadbliss-collaboration-intellige.vercel.app>
+
+| Item | Value |
+| --- | --- |
+| Platform | Vercel, Hobby plan |
+| Project | `spreadbliss-collaboration-intelligence` |
+| Framework preset | Next.js (auto-detected; `npm run build`) |
+| Deployment method | Vercel CLI (`vercel --prod`); not linked to GitHub, so merges to `main` do not auto-deploy |
+| Production env vars | `N8N_CHAT_WEBHOOK_URL` (sensitive), `N8N_REQUEST_TIMEOUT_MS=180000`; Basic-auth variables unset |
+| Function timeout | Hobby allows up to 300 s, above the app's 180 s default upstream timeout |
+
+Post-deploy smoke test: `GET /` returns 200, an invalid `POST /api/chat`
+returns 400 `invalid_request`, and a real message returns an assistant reply
+through n8n.
+
+### Deploying an update
+
+```bash
+npm install -g vercel
+vercel login
+vercel link          # select the existing project
+vercel --prod
+```
+
+Environment variables are managed in the Vercel project settings (or
+`vercel env add <NAME> production`). Never paste the webhook URL into the
+repository, `vercel.json`, or documentation; `.vercel/` and `.env*` (except
+`.env.example`) are gitignored. To deploy automatically on merge, connect the
+project to this GitHub repository under the Vercel project's Git settings.
 
 ## Security
 
