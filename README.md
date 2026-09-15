@@ -73,9 +73,6 @@ npm test
 npm run test:e2e
 ```
 
-The `/api/chat` endpoint currently returns `501` until the n8n integration task
-lands.
-
 ## Production build
 
 ```bash

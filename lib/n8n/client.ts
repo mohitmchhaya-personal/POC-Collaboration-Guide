@@ -2,8 +2,10 @@ import "server-only";
 
 import type { ChatResponse } from "@/lib/chat/types";
 import { getServerEnv } from "@/lib/env";
+import { describeResponseShape } from "./describe-shape";
 import { N8nError, categorizeUpstreamStatus } from "./errors";
 import { normalizeN8nResponse } from "./normalize-response";
+import { logUnrecognizedResponseShape } from "@/lib/logging";
 import type { N8nChatRequest, N8nClientDeps } from "./types";
 
 export function buildN8nRequest(input: {
@@ -79,7 +81,14 @@ export async function sendChatMessage(
       throw new N8nError("malformed", "response body is not JSON");
     }
 
-    return normalizeN8nResponse(parsed, input.sessionId);
+    try {
+      return normalizeN8nResponse(parsed, input.sessionId);
+    } catch (error: unknown) {
+      if (error instanceof N8nError && error.category === "malformed") {
+        logUnrecognizedResponseShape(describeResponseShape(parsed));
+      }
+      throw error;
+    }
   } finally {
     clearTimeout(timeout);
   }

@@ -145,6 +145,15 @@ success/error outcome, duration, HTTP status, optional upstream status and
 error category, and a short SHA-256 hash of the session ID. It never logs
 message content, webhook URLs, credentials, or upstream response bodies.
 
+### Diagnostics for unrecognized responses
+
+When a parsed upstream response cannot be normalized, development logging
+emits an `n8n_unrecognized_response` event containing only the top-level type,
+allowlisted object key names, the count of non-allowlisted object keys, and
+array length and first-item type when applicable. It never emits object values,
+non-allowlisted key names, or nested object keys. Production and test
+environments emit no diagnostic event.
+
 ## Open questions
 
 1. Does the deployed n8n Chat Trigger require `action: "sendMessage"`?
