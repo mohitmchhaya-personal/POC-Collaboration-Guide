@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChatShell } from "@/components/chat/ChatShell";
 import { SUGGESTED_PROMPTS } from "@/components/chat/EmptyState";
+import { ChatTransportError } from "@/lib/chat/api-transport";
 import type {
   ChatResponse,
   Recommendation,
@@ -95,7 +102,7 @@ describe("ChatShell", () => {
       screen.getByRole("button", { name: SUGGESTED_PROMPTS[1] }),
     );
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Researching potential collaboration opportunities…",
+      "Researching and verifying potential partners…",
     );
 
     resolve(response("Done."));
@@ -119,6 +126,204 @@ describe("ChatShell", () => {
     );
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
+
+  it.each([
+    [
+      "timeout",
+      new ChatTransportError("upstream timeout", 504, "http", "upstream_timeout"),
+      "Research took longer than expected. Please try again.",
+    ],
+    [
+      "busy",
+      new ChatTransportError(
+        "upstream busy",
+        429,
+        "http",
+        "upstream_rate_limited",
+      ),
+      "The research service is busy. Please try again shortly.",
+    ],
+    [
+      "unavailable",
+      new ChatTransportError(
+        "upstream unavailable",
+        502,
+        "http",
+        "upstream_unavailable",
+      ),
+      "The research service is temporarily unavailable.",
+    ],
+    [
+      "invalid response",
+      new ChatTransportError("bad body", 200, "malformed"),
+      "We couldn't process the research response.",
+    ],
+    [
+      "network",
+      new ChatTransportError("network detail", 0, "network"),
+      "We couldn't reach the research service.",
+    ],
+  ])("shows the safe %s error message", async (_name, error, message) => {
+    const user = userEvent.setup();
+    const sendMessage = vi.fn<SendChatMessage>().mockRejectedValue(error);
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  });
+
+  it("aborts an in-flight request when unmounted without updating state", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<ChatResponse>();
+    const sendMessage = vi.fn<SendChatMessage>().mockReturnValue(pending.promise);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const rendered = render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    const signal = sendMessage.mock.calls[0]?.[1]?.signal;
+    rendered.unmount();
+    expect(signal?.aborted).toBe(true);
+
+    pending.resolve(response("Unmounted response."));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("retries a timeout with the same session ID", async () => {
+    const user = userEvent.setup();
+    const sendMessage = vi
+      .fn<SendChatMessage>()
+      .mockRejectedValueOnce(
+        new ChatTransportError("timeout", 504, "http", "upstream_timeout"),
+      )
+      .mockResolvedValueOnce(response("Retry succeeded."));
+    render(<ChatShell sendMessage={sendMessage} />);
+    const textarea = screen.getByLabelText("Message");
+
+    await user.type(textarea, "Retry this request");
+    await user.keyboard("{Enter}");
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("Retry succeeded.");
+
+    expect(sendMessage.mock.calls[1]?.[0].sessionId).toBe(
+      sendMessage.mock.calls[0]?.[0].sessionId,
+    );
+  });
+
+  it("sends a 4,000-character message verbatim", async () => {
+    const user = userEvent.setup();
+    const message = "x".repeat(4000);
+    const sendMessage = vi.fn<SendChatMessage>().mockResolvedValue(
+      response("Long response."),
+    );
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    const textarea = screen.getByLabelText("Message");
+    fireEvent.change(textarea, {
+      target: { value: message },
+    });
+    await user.click(textarea);
+    await user.keyboard("{Enter}");
+    await screen.findByText("Long response.");
+    expect(sendMessage.mock.calls[0]?.[0].message).toBe(message);
+  });
+
+  it("does not send an empty or whitespace-only message", async () => {
+    const user = userEvent.setup();
+    const sendMessage = vi.fn<SendChatMessage>();
+    render(<ChatShell sendMessage={sendMessage} />);
+    const textarea = screen.getByLabelText("Message");
+
+    await user.click(textarea);
+    await user.keyboard("{Enter}");
+    fireEvent.change(textarea, { target: { value: "   " } });
+    await user.keyboard("{Enter}");
+
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("renders a long assistant response", async () => {
+    const user = userEvent.setup();
+    const content = Array.from({ length: 3000 }, (_, index) => `word-${index}`).join(
+      " ",
+    );
+    const sendMessage = vi.fn<SendChatMessage>().mockResolvedValue(response(content));
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+
+    expect(await screen.findByRole("article")).toHaveTextContent("word-2999");
+  });
+
+  it("renders a very long source URL as a complete anchor", async () => {
+    const user = userEvent.setup();
+    const url = `https://example.org/${"a".repeat(1480)}`;
+    const sendMessage = vi.fn<SendChatMessage>().mockResolvedValue(
+      response("Source response.", [{ name: "Long URL Partner", sources: [{ url }] }]),
+    );
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+
+    expect(await screen.findByRole("link")).toHaveAttribute("href", url);
+  });
+
+  it("renders one and two recommendation cards", async () => {
+    const user = userEvent.setup();
+    const sendMessage = vi.fn<SendChatMessage>()
+      .mockResolvedValueOnce(
+        response("One recommendation.", [{ name: "One Partner" }]),
+      )
+      .mockResolvedValueOnce(
+        response("Two recommendations.", [
+          { name: "Two Partner A" },
+          { name: "Two Partner B" },
+        ]),
+      );
+    render(<ChatShell sendMessage={sendMessage} />);
+
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+    );
+    expect(await screen.findByText("One Partner")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "New conversation" }));
+    await user.click(
+      screen.getByRole("button", { name: SUGGESTED_PROMPTS[1] }),
+    );
+    expect(await screen.findByText("Two Partner A")).toBeInTheDocument();
+    expect(screen.getByText("Two Partner B")).toBeInTheDocument();
+  });
+
+  it.each(["Which city should we prioritize?", "Thanks for the update."])(
+    "renders ordinary text without recommendation cards: %s",
+    async (content) => {
+      const user = userEvent.setup();
+      const sendMessage = vi.fn<SendChatMessage>().mockResolvedValue(
+        response(content),
+      );
+      render(<ChatShell sendMessage={sendMessage} />);
+
+      await user.click(
+        screen.getByRole("button", { name: SUGGESTED_PROMPTS[0] }),
+      );
+
+      expect(await screen.findByText(content)).toBeInTheDocument();
+      expect(
+        screen.queryByText("Recommended organizations"),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("uses the same session for a follow-up message", async () => {
     const user = userEvent.setup();
@@ -150,8 +355,7 @@ describe("ChatShell", () => {
     const textarea = screen.getByLabelText("Message");
 
     await user.type(textarea, "One request");
-    await user.keyboard("{Enter}");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}{Enter}");
 
     expect(sendMessage).toHaveBeenCalledOnce();
     pending.resolve(response("One response."));

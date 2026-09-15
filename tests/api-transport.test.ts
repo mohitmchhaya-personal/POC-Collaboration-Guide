@@ -64,7 +64,25 @@ describe("sendChatMessageViaApi", () => {
       sendChatMessageViaApi({ sessionId: "session-1", message: "Hello" }),
     ).rejects.toMatchObject<Partial<ChatTransportError>>({
       status: 200,
+      kind: "malformed",
       message: "Unrecognized response",
+    });
+  });
+
+  it("classifies fetch failures as network errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch https://secret.example");
+      }),
+    );
+
+    await expect(
+      sendChatMessageViaApi({ sessionId: "session-1", message: "Hello" }),
+    ).rejects.toMatchObject<Partial<ChatTransportError>>({
+      status: 0,
+      kind: "network",
+      message: "Network failure",
     });
   });
 
@@ -89,6 +107,7 @@ describe("sendChatMessageViaApi", () => {
     ).rejects.toMatchObject({
       status: 502,
       code: "upstream_unavailable",
+      kind: "http",
     });
   });
 
@@ -103,6 +122,7 @@ describe("sendChatMessageViaApi", () => {
     ).rejects.toMatchObject({
       status: 429,
       code: undefined,
+      kind: "http",
     });
   });
 
