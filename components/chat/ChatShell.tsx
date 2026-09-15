@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { sendChatMessageViaApi } from "@/lib/chat/api-transport";
+import { describeChatError } from "@/lib/chat/error-messages";
 import { createSessionId } from "@/lib/chat/session";
 import {
   clearStoredConversation,
@@ -29,6 +30,7 @@ export function ChatShell({
   const [messages, setMessages] = useState<TranscriptMessage[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const conversationRef = useRef(0);
@@ -42,6 +44,13 @@ export function ChatShell({
       setMessages(stored.messages);
     }
     setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      conversationRef.current += 1;
+      abortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -72,6 +81,7 @@ export function ChatShell({
     abortRef.current = controller;
     setStatus("loading");
     setFailedMessage(null);
+    setErrorMessage(null);
 
     try {
       const response = await sendMessage({
@@ -94,6 +104,7 @@ export function ChatShell({
       if (error instanceof Error && error.name === "AbortError") return;
       setStatus("error");
       setFailedMessage(message);
+      setErrorMessage(describeChatError(error));
     } finally {
       if (abortRef.current === controller) {
         abortRef.current = null;
@@ -120,6 +131,7 @@ export function ChatShell({
     setMessages([]);
     setStatus("idle");
     setFailedMessage(null);
+    setErrorMessage(null);
     clearStoredConversation();
     textareaRef.current?.focus();
   }
@@ -140,8 +152,7 @@ export function ChatShell({
               className="flex flex-wrap items-center gap-3 pb-6 text-sm text-red-700"
             >
               <span>
-                We couldn&apos;t complete that research request. Please try
-                again.
+                {errorMessage}
               </span>
               <button
                 type="button"

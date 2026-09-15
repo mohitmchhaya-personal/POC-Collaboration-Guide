@@ -15,7 +15,7 @@ export function ExternalLinkAnchor({
       href={href}
       target="_blank"
       rel="noopener noreferrer nofollow"
-      className="text-brand-blue underline underline-offset-2 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:outline-none"
+      className="break-all text-brand-blue underline underline-offset-2 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:outline-none"
     >
       {children}
       <ExternalLink aria-hidden="true" className="ml-1 inline-block" size={14} />

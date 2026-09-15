@@ -58,6 +58,11 @@ transport. The current session ID and transcript are stored in
 response, error, and logging contracts. Assistant responses support GitHub
 Flavored Markdown through a safe renderer with raw HTML disabled, and validated
 structured recommendations appear as organization cards with source links.
+Client-safe error messages distinguish timeouts, busy/unavailable services,
+malformed responses, network failures, and generic failures without exposing
+upstream details. See [docs/security.md](./docs/security.md) for the security
+decisions and [docs/n8n-integration.md](./docs/n8n-integration.md) for the
+integration contract.
 
 ## Lint
 
@@ -78,6 +83,15 @@ tests, recommendation-guard tests, and jsdom component tests. Markdown uses
 GFM syntax without raw HTML rendering; recommendation cards render validated
 organization details and HTTP(S) sources in a new tab. End-to-end tests remain
 a placeholder for now:
+
+The UI uses these client-safe error messages:
+
+- Timeout: “Research took longer than expected. Please try again.”
+- Busy: “The research service is busy. Please try again shortly.”
+- Unavailable: “The research service is temporarily unavailable.”
+- Invalid response: “We couldn't process the research response.”
+- Network: “We couldn't reach the research service.”
+- Generic: “We couldn't complete that research request. Please try again.”
 
 ```bash
 npm test

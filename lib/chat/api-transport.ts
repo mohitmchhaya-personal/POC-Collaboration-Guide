@@ -20,11 +20,18 @@ const CHAT_ERROR_CODES: ReadonlySet<string> = new Set([
 export class ChatTransportError extends Error {
   readonly code?: ChatErrorCode;
   readonly status: number;
+  readonly kind: "http" | "malformed" | "network";
 
-  constructor(message: string, status: number, code?: ChatErrorCode) {
+  constructor(
+    message: string,
+    status: number,
+    kind: "http" | "malformed" | "network",
+    code?: ChatErrorCode,
+  ) {
     super(message);
     this.name = "ChatTransportError";
     this.status = status;
+    this.kind = kind;
     this.code = code;
   }
 }
@@ -64,19 +71,27 @@ export const sendChatMessageViaApi: SendChatMessage = async (
   request: ChatRequest,
   options = {},
 ) => {
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message: request.message,
-      sessionId: request.sessionId,
-    }),
-    signal: options.signal,
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: request.message,
+        sessionId: request.sessionId,
+      }),
+      signal: options.signal,
+      cache: "no-store",
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+    throw new ChatTransportError("Network failure", 0, "network");
+  }
 
   if (!response.ok) {
     let body: unknown;
@@ -91,17 +106,30 @@ export const sendChatMessageViaApi: SendChatMessage = async (
       isChatErrorCode((body as { code?: unknown }).code)
         ? (body as { code: ChatErrorCode }).code
         : undefined;
-    throw new ChatTransportError("Chat request failed", response.status, code);
+    throw new ChatTransportError(
+      "Chat request failed",
+      response.status,
+      "http",
+      code,
+    );
   }
 
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    throw new ChatTransportError("Unrecognized response", response.status);
+    throw new ChatTransportError(
+      "Unrecognized response",
+      response.status,
+      "malformed",
+    );
   }
   if (!isChatResponseEnvelope(body)) {
-    throw new ChatTransportError("Unrecognized response", response.status);
+    throw new ChatTransportError(
+      "Unrecognized response",
+      response.status,
+      "malformed",
+    );
   }
 
   const recommendations = parseRecommendations(body.recommendations);
